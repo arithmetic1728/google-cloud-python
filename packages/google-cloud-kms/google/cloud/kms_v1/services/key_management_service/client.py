@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 from collections import OrderedDict
+from http import HTTPStatus
 import os
 import re
 from typing import (
@@ -628,6 +629,13 @@ class KeyManagementServiceClient(metaclass=KeyManagementServiceClientMeta):
         )
         return self._is_universe_domain_valid
 
+    def _add_cred_info_for_auth_errors(self, error):
+        if error.code in [HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND]:
+            cred_info = self._transport._credentials.get_cred_info()
+            if cred_info and hasattr(error, "_details") and error._details:
+                error._details.append(cred_info)
+        return error
+
     @property
     def api_endpoint(self):
         """Return the API endpoint used by the client instance.
@@ -885,25 +893,29 @@ class KeyManagementServiceClient(metaclass=KeyManagementServiceClientMeta):
         # Validate the universe domain.
         self._validate_universe_domain()
 
-        # Send the request.
-        response = rpc(
-            request,
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
+        try:
+            # Send the request.
+            response = rpc(
+                request,
+                retry=retry,
+                timeout=timeout,
+                metadata=metadata,
+            )
 
-        # This method is paged; wrap the response in a pager, which provides
-        # an `__iter__` convenience method.
-        response = pagers.ListKeyRingsPager(
-            method=rpc,
-            request=request,
-            response=response,
-            metadata=metadata,
-        )
+            # This method is paged; wrap the response in a pager, which provides
+            # an `__iter__` convenience method.
+            response = pagers.ListKeyRingsPager(
+                method=rpc,
+                request=request,
+                response=response,
+                metadata=metadata,
+            )
 
-        # Done; return the response.
-        return response
+            # Done; return the response.
+            return response
+        except core_exceptions.GoogleAPICallError as e:
+            e = self._add_cred_info_for_auth_errors(e)
+            raise e
 
     def list_crypto_keys(
         self,
