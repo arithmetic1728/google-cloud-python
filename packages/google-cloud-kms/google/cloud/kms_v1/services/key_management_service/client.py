@@ -633,21 +633,21 @@ class KeyManagementServiceClient(metaclass=KeyManagementServiceClientMeta):
     def _add_cred_info_for_auth_errors(
         self,
         error: core_exceptions.GoogleAPICallError
-    ) -> core_exceptions.GoogleAPICallError:
+    ) -> None:
         """Adds credential info string to error details for 401/403/404 errors.
-
         Args:
             error (google.api_core.exceptions.GoogleAPICallError): The error to add the cred info.
-
-        Returns:
-            google.api_core.exceptions.GoogleAPICallError: The error with cred info added.
         """
-        if error.code in [HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND]:
-            cred = self._transport._credentials
-            cred_info = cred.get_cred_info() if hasattr(cred, "get_cred_info") else None
-            if cred_info:
-                error._details.append(json.dumps(cred_info))
-        return error
+        if error.code not in [HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND]:
+            return
+
+        cred = self._transport._credentials
+        if not hasattr(cred, "get_cred_info"):
+            return
+
+        cred_info = cred.get_cred_info()  # type: ignore
+        if cred_info and hasattr(error._details, "append"):
+            error._details.append(json.dumps(cred_info))
 
     @property
     def api_endpoint(self):
@@ -927,7 +927,7 @@ class KeyManagementServiceClient(metaclass=KeyManagementServiceClientMeta):
             # Done; return the response.
             return response
         except core_exceptions.GoogleAPICallError as e:
-            e = self._add_cred_info_for_auth_errors(e)
+            self._add_cred_info_for_auth_errors(e)
             raise e
 
     def list_crypto_keys(

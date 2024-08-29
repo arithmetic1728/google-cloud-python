@@ -401,25 +401,29 @@ class KeyManagementServiceAsyncClient:
         # Validate the universe domain.
         self._client._validate_universe_domain()
 
-        # Send the request.
-        response = await rpc(
-            request,
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
+        try:
+            # Send the request.
+            response = await rpc(
+                request,
+                retry=retry,
+                timeout=timeout,
+                metadata=metadata,
+            )
 
-        # This method is paged; wrap the response in a pager, which provides
-        # an `__aiter__` convenience method.
-        response = pagers.ListKeyRingsAsyncPager(
-            method=rpc,
-            request=request,
-            response=response,
-            metadata=metadata,
-        )
+            # This method is paged; wrap the response in a pager, which provides
+            # an `__aiter__` convenience method.
+            response = pagers.ListKeyRingsAsyncPager(
+                method=rpc,
+                request=request,
+                response=response,
+                metadata=metadata,
+            )
 
-        # Done; return the response.
-        return response
+            # Done; return the response.
+            return response
+        except core_exceptions.GoogleAPICallError as e:
+            self._client._add_cred_info_for_auth_errors(e)
+            raise e
 
     async def list_crypto_keys(
         self,
