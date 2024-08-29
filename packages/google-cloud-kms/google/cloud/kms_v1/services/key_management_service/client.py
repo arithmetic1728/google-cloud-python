@@ -15,6 +15,7 @@
 #
 from collections import OrderedDict
 from http import HTTPStatus
+import json
 import os
 import re
 from typing import (
@@ -629,11 +630,23 @@ class KeyManagementServiceClient(metaclass=KeyManagementServiceClientMeta):
         )
         return self._is_universe_domain_valid
 
-    def _add_cred_info_for_auth_errors(self, error):
+    def _add_cred_info_for_auth_errors(
+        self,
+        error: core_exceptions.GoogleAPICallError
+    ) -> core_exceptions.GoogleAPICallError:
+        """Adds credential info string to error details for 401/403/404 errors.
+
+        Args:
+            error (google.api_core.exceptions.GoogleAPICallError): The error to add the cred info.
+
+        Returns:
+            google.api_core.exceptions.GoogleAPICallError: The error with cred info added.
+        """
         if error.code in [HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND]:
-            cred_info = self._transport._credentials.get_cred_info()
-            if cred_info and hasattr(error, "_details") and error._details:
-                error._details.append(cred_info)
+            cred = self._transport._credentials
+            cred_info = cred.get_cred_info() if hasattr(cred, "get_cred_info") else None
+            if cred_info:
+                error._details.append(json.dumps(cred_info))
         return error
 
     @property
